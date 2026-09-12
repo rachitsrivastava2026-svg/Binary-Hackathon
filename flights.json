@@ -1,0 +1,57 @@
+[
+  {
+    "flight_id": "FL101",
+    "airline": "IndiGo",
+    "origin": "BLR",
+    "destination": "DEL",
+    "date": "2026-10-05",
+    "departure_time": "06:15",
+    "arrival_time": "08:45",
+    "price_inr": 4200,
+    "seats_available": 12
+  },
+  {
+    "flight_id": "FL102",
+    "airline": "Air India",
+    "origin": "BLR",
+    "destination": "DEL",
+    "date": "2026-10-05",
+    "departure_time": "14:00",
+    "arrival_time": "16:35",
+    "price_inr": 5600,
+    "seats_available": 3
+  },
+  {
+    "flight_id": "FL103",
+    "airline": "SpiceJet",
+    "origin": "BLR",
+    "destination": "DEL",
+    "date": "2026-10-05",
+    "departure_time": "19:20",
+    "arrival_time": "21:50",
+    "price_inr": 3800,
+    "seats_available": 0
+  },
+  {
+    "flight_id": "FL201",
+    "airline": "IndiGo",
+    "origin": "DEL",
+    "destination": "BLR",
+    "date": "2026-10-08",
+    "departure_time": "09:00",
+    "arrival_time": "11:35",
+    "price_inr": 4500,
+    "seats_available": 20
+  },
+  {
+    "flight_id": "FL202",
+    "airline": "Vistara",
+    "origin": "DEL",
+    "destination": "BLR",
+    "date": "2026-10-08",
+    "departure_time": "17:10",
+    "arrival_time": "19:45",
+    "price_inr": 6100,
+    "seats_available": 8
+  }
+]
