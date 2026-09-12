@@ -45,6 +45,7 @@ from datetime import datetime, timedelta
 import requests  # pip install requests
 
 from hotel_lookup import search_real_hotels as _search_real_hotels_api
+from flight_lookup import search_real_flights as _search_real_flights_api
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 FLIGHTS_PATH = os.path.join(DATA_DIR, "flights.json")
@@ -146,7 +147,8 @@ def _hotel_deep_link(city_query: str, check_in: str, check_out: str,
 def search_flights(origin: str, destination: str, date: str = None):
     """Find flights matching origin/destination, optionally filtered by date.
 
-    Uses Duffel if DUFFEL_API_KEY is set, otherwise the local mock data.
+    Uses Duffel (via flight_lookup.py) if DUFFEL_API_KEY is set, otherwise
+    the local mock data.
 
     Args:
         origin: 3-letter airport code, e.g. "BLR"
@@ -158,10 +160,13 @@ def search_flights(origin: str, destination: str, date: str = None):
     """
     if DUFFEL_API_KEY:
         try:
-            result = _search_flights_duffel(origin, destination, date)
-            for f in result["flights"]:
-                _FLIGHT_CACHE[f["flight_id"]] = f
-            return result
+            result = search_real_flights(origin, destination, date)
+            if result["status"] == "ok" and result["count"] > 0:
+                return result
+            if result["status"] == "error":
+                print(f"[tools.py] Duffel flight search failed ({result['message']}) — falling back to mock data")
+            else:
+                print(f"[tools.py] Duffel returned 0 flights for {origin}->{destination} — falling back to mock data")
         except Exception as e:
             print(f"[tools.py] Duffel flight search failed ({e}) — falling back to mock data")
     result = _search_flights_mock(origin, destination, date)
@@ -182,54 +187,32 @@ def _search_flights_mock(origin, destination, date):
     return {"status": "ok", "count": len(results), "flights": results}
 
 
-def _search_flights_duffel(origin, destination, date):
-    if not date:
-        # Duffel requires a departure_date per slice — default to a
-        # couple weeks out if the caller didn't give one.
-        date = (datetime.now().date() + timedelta(days=14)).isoformat()
+def search_real_flights(origin: str, destination: str, date: str = None):
+    """Look up REAL flight offers between two airports via Duffel's live
+    search API (see flight_lookup.py). This is genuine live data — real
+    airlines, times, and prices — not mock JSON. It's the same source
+    search_flights() already uses when DUFFEL_API_KEY is set, exposed
+    here as its own directly-callable tool so the model (and the user)
+    can query live flights explicitly.
 
-    body = {
-        "data": {
-            "slices": [{
-                "origin": origin.upper(),
-                "destination": destination.upper(),
-                "departure_date": date,
-            }],
-            "passengers": [{"type": "adult"}],
-            "cabin_class": "economy",
-        }
-    }
-    resp = requests.post(
-        f"{DUFFEL_BASE_URL}/air/offer_requests?return_offers=true",
-        headers=_duffel_headers(),
-        json=body,
-        timeout=15,
-    )
-    resp.raise_for_status()
-    offers = resp.json()["data"].get("offers", [])
+    Results ARE bookable: each flight is cached by flight_id (same cache
+    search_flights uses), so a later book_flight(flight_id=...) call
+    finds it here.
 
-    flights = []
-    for o in offers:
-        slice0 = o["slices"][0]
-        first_seg = slice0["segments"][0]
-        last_seg = slice0["segments"][-1]
-        currency = o["total_currency"]
-        amount = float(o["total_amount"])
-        flights.append({
-            "flight_id": o["id"],
-            "airline": o["owner"]["name"],
-            "origin": first_seg["origin"]["iata_code"],
-            "destination": last_seg["destination"]["iata_code"],
-            "date": first_seg["departing_at"][:10],
-            "departure_time": first_seg["departing_at"][11:16],
-            "arrival_time": last_seg["arriving_at"][11:16],
-            "price_inr": round(amount * FX_TO_INR.get(currency, 1.0)),
-            "price_original": f"{amount} {currency}",  # transparency re: the FX estimate above
-            # Duffel offers don't expose a literal remaining-seat count —
-            # if it came back as an offer, treat it as bookable.
-            "seats_available": 9,
-        })
-    return {"status": "ok", "count": len(flights), "flights": flights}
+    Args:
+        origin: 3-letter airport code, e.g. "BLR"
+        destination: 3-letter airport code, e.g. "DEL"
+        date: optional "YYYY-MM-DD"; defaults to ~2 weeks out if omitted
+
+    Returns:
+        {"status": "ok", "flights": [...]}
+        or {"status": "error", "message": "..."} if DUFFEL_API_KEY is missing
+    """
+    result = _search_real_flights_api(origin, destination, date)
+    if result["status"] == "ok":
+        for f in result["flights"]:
+            _FLIGHT_CACHE[f["flight_id"]] = f
+    return result
 
 
 def search_hotels(city: str, max_price_inr: float = None, min_rating: float = None):
