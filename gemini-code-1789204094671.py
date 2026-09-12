@@ -1,5 +1,5 @@
 import streamlit as st
-from agentfinal_2 import BoundaryAgent
+from agentfinal import BoundaryAgent
 
 st.set_page_config(page_title="Boundary — Guardrailed AI Agent", layout="wide")
 
